@@ -12,38 +12,59 @@
  * Domain Path:       /languages
  */ 
 
-class WPD_Theme_Switcher {
+$set_theme = set_random_theme();
 
-    private $themes = array(
-        'twentynineteen',
-        'twentytwentyone'
-    );
-    private $current_theme = '';
-    private $cookie = 'wpd_theme_switcher_cookie';
-
-    function __construct() {
-
-        if( empty( $this->current_theme ) && !isset( $_COOKIE[ $this->cookie ] ) ) {
-            $this->current_theme = $this->themes[ array_rand( $this->themes ) ];
-            setcookie( $this->cookie, $this->current_theme, time() + (10 * 365 * 24 * 60 * 60) );
-        } else {
-            $this->current_theme = $_COOKIE[ $this->cookie ];
+function set_random_theme() {
+        $random_theme = '';
+        $themes = wp_get_themes();
+        if ( 1 < count($themes) ) {
+                $theme_names = array_keys($themes);
+                $length = count($theme_names);
+                $selected = rand(0,$length-1);
+                $random_theme = $theme_names[$selected];
         }
-
-        // don't switch themes for admin requests
-        if( ! is_admin() ){
-            add_filter( 'template', array( $this, 'theme_switcher' ) );
-            add_filter( 'option_template', array( $this, 'theme_switcher' ) );
-            add_filter( 'option_stylesheet', array( $this, 'theme_switcher' ) );
-        }
-
-    }
-
-    function theme_switcher(){
-        return $this->current_theme;
-    }
-
+        return $random_theme;
 }
-new WPD_Theme_Switcher();
 
+function set_theme_template($template) {
+    global $set_theme;
+
+        $theme = $set_theme;
+                
+    if (empty($theme)) {
+        return $template;
+    }
+
+    $theme = wp_get_theme($theme);
+
+    if (empty($theme)) {
+                
+        return $template;
+    }
+        
+    return $theme['Template'];
+}
+
+function set_theme_stylesheet($stylesheet) {
+    global $set_theme;
+
+        $theme = $set_theme;
+
+    if (empty($theme)) {
+        return $stylesheet;
+    }
+
+    $theme = wp_get_theme($theme);
+
+    if (empty($theme)) {
+        return $stylesheet;
+    }
+
+    return $theme['Stylesheet'];
+}
+
+if ( !is_admin() ) {
+        add_filter('stylesheet', 'set_theme_stylesheet');
+        add_filter('template', 'set_theme_template');
+}
 ?>
