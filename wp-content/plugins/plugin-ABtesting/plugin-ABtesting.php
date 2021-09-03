@@ -12,4 +12,38 @@
  * Domain Path:       /languages
  */ 
 
+class WPD_Theme_Switcher {
+
+    private $themes = array(
+        'twentynineteen',
+        'twentytwentyone'
+    );
+    private $current_theme = '';
+    private $cookie = 'wpd_theme_switcher_cookie';
+
+    function __construct() {
+
+        if( empty( $this->current_theme ) && !isset( $_COOKIE[ $this->cookie ] ) ) {
+            $this->current_theme = $this->themes[ array_rand( $this->themes ) ];
+            setcookie( $this->cookie, $this->current_theme, time() + (10 * 365 * 24 * 60 * 60) );
+        } else {
+            $this->current_theme = $_COOKIE[ $this->cookie ];
+        }
+
+        // don't switch themes for admin requests
+        if( ! is_admin() ){
+            add_filter( 'template', array( $this, 'theme_switcher' ) );
+            add_filter( 'option_template', array( $this, 'theme_switcher' ) );
+            add_filter( 'option_stylesheet', array( $this, 'theme_switcher' ) );
+        }
+
+    }
+
+    function theme_switcher(){
+        return $this->current_theme;
+    }
+
+}
+new WPD_Theme_Switcher();
+
 ?>
