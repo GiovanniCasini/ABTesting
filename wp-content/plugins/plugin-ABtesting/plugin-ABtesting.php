@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Plugin Name:       ABtesting
  * Plugin URI:        https://localhost/wp-admin/plugins.php
@@ -12,59 +11,74 @@
  * Domain Path:       /languages
  */ 
 
-$set_theme = set_random_theme();
-
-function set_random_theme() {
-        $random_theme = '';
-        $themes = wp_get_themes();
-        if ( 1 < count($themes) ) {
-                $theme_names = array_keys($themes);
-                $length = count($theme_names);
-                $selected = rand(0,$length-1);
-                $random_theme = $theme_names[$selected];
-        }
-        return $random_theme;
+function demo_settings()
+{
+    add_settings_section("section", "Temi da alternare", null, "demo");
+    add_settings_field("theme1", "Tema 1", "theme_1_select", "demo", "section");
+    add_settings_field("theme2", "Tema 2", "theme_2_select", "demo", "section");  
+    register_setting("section", "theme1");
+    register_setting("section", "theme2");
 }
 
-function set_theme_template($template) {
-    global $set_theme;
-
-        $theme = $set_theme;
-                
-    if (empty($theme)) {
-        return $template;
+function theme_1_select()
+{
+    $themes = wp_get_themes();
+    if (count($themes) > 1) {
+        $theme_names = array_keys($themes);
     }
-
-    $theme = wp_get_theme($theme);
-
-    if (empty($theme)) {
-                
-        return $template;
+    $html = '';
+    foreach($theme_names as $theme){
+        $html .= "<option value='" . $theme . "'" . selected(get_option('theme1'), $theme) . ">" . $theme . "</option>";
     }
-        
-    return $theme['Template'];
+   ?>
+        <select name="theme1">
+        <?php echo $html; ?>
+        </select>
+   <?php
 }
 
-function set_theme_stylesheet($stylesheet) {
-    global $set_theme;
-
-        $theme = $set_theme;
-
-    if (empty($theme)) {
-        return $stylesheet;
+function theme_2_select()
+{
+    $themes = wp_get_themes();
+    if (count($themes) > 1) {
+        $theme_names = array_keys($themes);
     }
-
-    $theme = wp_get_theme($theme);
-
-    if (empty($theme)) {
-        return $stylesheet;
+    $html = '';
+    foreach($theme_names as $theme){
+        $html .= "<option value='" . $theme . "'" . selected(get_option('theme2'), $theme) . ">" . $theme . "</option>";
     }
-
-    return $theme['Stylesheet'];
+   ?>
+        <select name="theme2">
+          <?php echo $html; ?>
+        </select>
+   <?php
 }
 
-if ( !is_admin() ) {
-        add_filter('stylesheet', 'set_theme_stylesheet');
-        add_filter('template', 'set_theme_template');
+add_action("admin_init", "demo_settings");
+
+function demo_page()
+{
+  ?>
+      <div class="wrap">
+         <h1>ABTesting Settings</h1>
+ 
+         <form method="post" action="options.php">
+            <?php
+               settings_fields("section");
+ 
+               do_settings_sections("demo");
+                 
+               submit_button();
+            ?>
+         </form>
+      </div>
+   <?php
 }
-?>
+
+function menu_item()
+{
+  add_submenu_page("options-general.php", "ABTesting Settings", "ABtesting", "manage_options", "demo", "demo_page");
+}
+ 
+add_action("admin_menu", "menu_item");
+
