@@ -11,7 +11,7 @@
  * Domain Path:       /languages
  */ 
 
-function demo_settings()
+function demo_settings()     // definisce impostazioni del plugin
 {
     add_settings_section("section", "Temi da alternare", null, "demo");
     add_settings_field("theme1", "Tema 1", "theme_1_select", "demo", "section");
@@ -23,7 +23,7 @@ function demo_settings()
     register_setting("urlsection", "goalurl");
 }
 
-function theme_1_select()
+function theme_1_select()  // seleziona primo tema
 {
     $themes = wp_get_themes();
     if (count($themes) > 1) {
@@ -40,7 +40,7 @@ function theme_1_select()
    <?php
 }
 
-function theme_2_select()
+function theme_2_select()   // seleziona secondo tema
 {
     $themes = wp_get_themes();
     if (count($themes) > 1) {
@@ -57,14 +57,14 @@ function theme_2_select()
    <?php
 }
 
-function urlTraguardo(){
+function urlTraguardo(){   // seleziona URL di arrivo per calcolo statistiche
     $html = "<input type='text' value='" . get_option('goalurl') . "' name='goalurl'></input>";
     echo $html;
 }
 
 add_action("admin_init", "demo_settings");
 
-function demo_page()
+function demo_page()   // crea pagina impostazioni del plugin
 {
   ?>
       <div class="wrap">
@@ -84,14 +84,14 @@ function demo_page()
    <?php
 }
 
-function menu_item()
+function menu_item()  // crea submenu del plugin
 {
   add_submenu_page("options-general.php", "ABTesting Settings", "ABtesting", "manage_options", "demo", "demo_page");
 }
  
 add_action("admin_menu", "menu_item");
 
-function cookie_manager() {
+function cookie_manager() {   // gestisce cookie per tenere traccia dati utente
     $themes_array = [get_option('theme1'), get_option('theme2')];
     $rand_index = array_rand($themes_array);
     $user_theme = $themes_array[$rand_index];
@@ -118,27 +118,27 @@ function cookie_manager() {
         $total_time = time() - $_COOKIE['time_started'];
         setcookie('total_time', $total_time, 0, '/');
         $servername = "localhost";
-$username = "root";
-$password = "root";
-$dbname = "abtesting";
+        $username = "root";
+        $password = "root";
+        $dbname = "abtesting";
 
-// Create connection
-$conn = mysqli_connect($servername, $username, $password, $dbname);
-// Check connection
-if (!$conn) {
-  die("Connection failed: " . mysqli_connect_error());
-}
-$sql = "INSERT INTO testingdata (clicks, totaltime, userid, theme)
-VALUES ('". $_COOKIE["clicks"] ."', '". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "')";
+        // Create connection
+        $conn = mysqli_connect($servername, $username, $password, $dbname);
+        // Check connection
+        if (!$conn) {
+        die("Connection failed: " . mysqli_connect_error());
+        }
+        $sql = "INSERT INTO testingdata (clicks, totaltime, userid, theme)
+        VALUES ('". $_COOKIE["clicks"] ."', '". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "')";
 
-if (!mysqli_query($conn, $sql)) {
-    echo "Error: " . $sql . "<br>" . mysqli_error($conn);
-}
-else{
-    setcookie("datatransfered", "true", 0, "/");
-}
+        if (!mysqli_query($conn, $sql)) {
+            echo "Error: " . $sql . "<br>" . mysqli_error($conn);
+        }
+        else{
+            setcookie("datatransfered", "true", 0, "/");
+        }
 
-mysqli_close($conn);
+        mysqli_close($conn);
     }
    }
 add_action('init', 'cookie_manager');
