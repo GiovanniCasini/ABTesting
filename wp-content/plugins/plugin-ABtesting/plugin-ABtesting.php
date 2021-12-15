@@ -91,6 +91,32 @@ function menu_item()  // crea submenu del plugin
  
 add_action("admin_menu", "menu_item");
 
+function get_current_url(){
+    if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')$url = "https://";   
+        else $url = "http://";
+        $url.= $_SERVER['HTTP_HOST'];
+        $url.= $_SERVER['REQUEST_URI'];
+    return $url;
+}
+
+function publish($sql){
+    $servername = "localhost";
+            $username = "root";
+            $password = "root";
+            $dbname = "abtesting";
+            // Create connection
+            $conn = mysqli_connect($servername, $username, $password, $dbname);
+            // Check connection
+            if (!$conn) {
+            die("Connection failed: " . mysqli_connect_error());
+            }
+    
+            if (!mysqli_query($conn, $sql)) {
+                echo "Error: " . $sql . "<br>" . mysqli_error($conn);
+            }
+            mysqli_close($conn);
+}
+
 function cookie_manager() {   // gestisce cookie per tenere traccia dati utente
     $themes_array = [get_option('theme1'), get_option('theme2')];
     $rand_index = array_rand($themes_array);
@@ -99,47 +125,27 @@ function cookie_manager() {   // gestisce cookie per tenere traccia dati utente
     if(!isset($_COOKIE['userid'])) {
         setcookie('userid', uniqid('', true), 0, '/');
         setcookie('theme', $user_theme, 0, '/');
+        setcookie('currenturl', get_current_url(), 0, '/');
         setcookie('time_started', time(), 0, '/');
-        setcookie('clicks', 0, 0, '/');
         switch_theme($user_theme);
     }
     else{
-        if(!isset($_COOKIE["total_time"])){
-            setcookie('clicks', $_COOKIE['clicks']+1, 0, '/');
+        if(get_current_url() != $_COOKIE['currenturl'] && $_COOKIE["goal"] != "true"){
+            if(get_current_url() == get_option('goalurl'))
+                setcookie('goal', 'true', 0, '/');
+            
+            echo get_current_url();
+            $total_time = time() - $_COOKIE["time_started"];
+            setcookie('time_started', time(), 0, '/');
+            $sql = "INSERT INTO testingdata (timespent, userid, theme, webpage)
+            VALUES ('". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "','" . $_COOKIE["currenturl"] . "')";
+            publish($sql);
+            setcookie('currenturl', get_current_url(), 0, '/');
+            $total_time = 0;
         }
     }
-    if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on')$url = "https://";   
-    else $url = "http://";
-    $url.= $_SERVER['HTTP_HOST'];
-    $url.= $_SERVER['REQUEST_URI'];    
-      
-    //echo $url;
-    if($url == get_option('goalurl') && $_COOKIE["datatransfered"] != "true"){
-        $total_time = time() - $_COOKIE['time_started'];
-        setcookie('total_time', $total_time, 0, '/');
-        $servername = "localhost";
-        $username = "root";
-        $password = "root";
-        $dbname = "abtesting";
-
-        // Create connection
-        $conn = mysqli_connect($servername, $username, $password, $dbname);
-        // Check connection
-        if (!$conn) {
-        die("Connection failed: " . mysqli_connect_error());
-        }
-        $sql = "INSERT INTO testingdata (clicks, totaltime, userid, theme)
-        VALUES ('". $_COOKIE["clicks"] ."', '". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "')";
-
-        if (!mysqli_query($conn, $sql)) {
-            echo "Error: " . $sql . "<br>" . mysqli_error($conn);
-        }
-        else{
-            setcookie("datatransfered", "true", 0, "/");
-        }
-
-        mysqli_close($conn);
-    }
-   }
+    
+}
+   
 add_action('init', 'cookie_manager');
 
