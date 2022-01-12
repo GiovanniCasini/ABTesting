@@ -17,7 +17,7 @@ function demo_settings()     // definisce impostazioni del plugin
     add_settings_field("theme1", "Tema 1", "theme_1_select", "demo", "section");
     add_settings_field("theme2", "Tema 2", "theme_2_select", "demo", "section");  
     add_settings_section("urlsection", "URL", null, "demo");
-    add_settings_field("goalurl", "URL Traguardo", "urlTraguardo", "demo", "urlsection");
+    add_settings_field("goalurl", "URL Traguardo separati da virgole", "urlTraguardo", "demo", "urlsection");
     register_setting("section", "theme1");
     register_setting("section", "theme2");
     register_setting("urlsection", "goalurl");
@@ -88,6 +88,93 @@ function menu_item()  // crea submenu del plugin
 {
   add_submenu_page("options-general.php", "ABTesting Settings", "ABtesting", "manage_options", "demo", "demo_page");
 }
+
+function my_admin_menu() {
+    add_menu_page(
+        __( 'Stats', 'my-textdomain' ),
+        __( 'ABTesting Stats', 'my-textdomain' ),
+        'manage_options',
+        'sample-page',
+        'my_admin_page_contents',
+        'dashicons-schedule',
+        3
+    );
+}
+
+add_action( 'admin_menu', 'my_admin_menu' );
+
+function get_data_query($sql){
+    $servername = "localhost";
+$username = "root";
+$password = "root";
+$dbname = "abtesting";
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) 
+  die("Connection failed: " . $conn->connect_error);
+$result = $conn->query($sql);
+$query_array = array();
+if ($result->num_rows > 0) {
+  while($row = $result->fetch_assoc()) {
+      array_push($query_array, array($row["theme"], $row["avgtime"], $row["avgclicks"]));
+  }
+  
+  return $query_array;
+}
+$conn->close();
+}
+//SELECT userid, SUM(timespent), COUNT(webpage) FROM `testingdata` GROUP BY userid
+//SELECT AVG(timesum), AVG(webcount) FROM (SELECT userid, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid) AS inner_query
+//SELECT theme, AVG(timesum), AVG(webcount) FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query GROUP BY theme
+
+
+
+function my_admin_page_contents() {
+    $sql_query = "SELECT theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query GROUP BY theme";
+    ?>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+        <h1>
+            <?php esc_html_e( 'ABTesting Stats', 'my-plugin-textdomain' ); ?>
+        </h1>
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+
+<script>
+    var tempArray = <?php echo json_encode(get_data_query($sql_query)); ?>;
+    console.log(tempArray);
+const ctx = document.getElementById('myChart').getContext('2d');
+var data = {
+    labels: ["Time Spent", "Clicks"],
+    datasets: [
+        {
+            label: tempArray[0][0],
+            backgroundColor: "#CA2E55",
+            data: [tempArray[0][1],tempArray[0][2]]
+        },
+        {
+            label: tempArray[1][0],
+            backgroundColor: "#6457A6",
+            data: [tempArray[1][1],tempArray[1][2]]
+        },
+    ]
+};
+var myBarChart = new Chart(ctx, {
+    type: 'bar',
+    data: data,
+    options: {
+        barValueSpacing: 20,
+        scales: {
+            yAxes: [{
+                ticks: {
+                    min: 0,
+                }
+            }]
+        }
+    }
+});
+</script>
+    <?php
+}
  
 add_action("admin_menu", "menu_item");
 
@@ -99,21 +186,18 @@ function get_current_url(){
     return $url;
 }
 
-function publish($sql){
+function perform_query($sql){
     $servername = "localhost";
-            $username = "root";
-            $password = "root";
-            $dbname = "abtesting";
-            // Create connection
-            $conn = mysqli_connect($servername, $username, $password, $dbname);
+    $username = "root";
+    $password = "root";
+    $dbname = "abtesting";
+    // Create connection
+    $conn = mysqli_connect($servername, $username, $password, $dbname);
             // Check connection
-            if (!$conn) {
+            if (!$conn)
             die("Connection failed: " . mysqli_connect_error());
-            }
-    
-            if (!mysqli_query($conn, $sql)) {
+            if (!mysqli_query($conn, $sql))
                 echo "Error: " . $sql . "<br>" . mysqli_error($conn);
-            }
             mysqli_close($conn);
 }
 
@@ -131,20 +215,18 @@ function cookie_manager() {   // gestisce cookie per tenere traccia dati utente
     }
     else{
         if(get_current_url() != $_COOKIE['currenturl'] && $_COOKIE["goal"] != "true"){
-            if(get_current_url() == get_option('goalurl'))
+            $url_array = explode(',', get_option('goalurl'));
+            if(in_array(get_current_url(), $url_array))
                 setcookie('goal', 'true', 0, '/');
-            
-            echo get_current_url();
             $total_time = time() - $_COOKIE["time_started"];
             setcookie('time_started', time(), 0, '/');
             $sql = "INSERT INTO testingdata (timespent, userid, theme, webpage)
             VALUES ('". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "','" . $_COOKIE["currenturl"] . "')";
-            publish($sql);
+            perform_query($sql);
             setcookie('currenturl', get_current_url(), 0, '/');
             $total_time = 0;
         }
     }
-    
 }
    
 add_action('init', 'cookie_manager');
