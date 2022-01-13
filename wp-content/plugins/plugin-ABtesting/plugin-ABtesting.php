@@ -13,14 +13,13 @@
 
 function demo_settings()     // definisce impostazioni del plugin
 {
-    add_settings_section("section", "Temi da alternare", null, "demo");
+    add_settings_section("section", "Impostazioni", null, "demo");
     add_settings_field("theme1", "Tema 1", "theme_1_select", "demo", "section");
     add_settings_field("theme2", "Tema 2", "theme_2_select", "demo", "section");  
-    add_settings_section("urlsection", "URL", null, "demo");
-    add_settings_field("goalurl", "URL Traguardo separati da virgole", "urlTraguardo", "demo", "urlsection");
+    add_settings_field("goalurl", "URL Traguardo separati da virgole", "urlTraguardo", "demo", "section");
     register_setting("section", "theme1");
     register_setting("section", "theme2");
-    register_setting("urlsection", "goalurl");
+    register_setting("section", "goalurl");
 }
 
 function theme_1_select()  // seleziona primo tema
@@ -31,7 +30,7 @@ function theme_1_select()  // seleziona primo tema
     }
     $html = '';
     foreach($theme_names as $theme){
-        $html .= "<option value='" . $theme . "'" . selected(get_option('theme1'), $theme) . ">" . $theme . "</option>";
+        $html .= "<option value='" . $theme . "'" . selected(get_option('theme1'), $theme, false) . ">" . $theme . "</option>";
     }
    ?>
         <select name="theme1">
@@ -48,13 +47,15 @@ function theme_2_select()   // seleziona secondo tema
     }
     $html = '';
     foreach($theme_names as $theme){
-        $html .= "<option value='" . $theme . "'" . selected(get_option('theme2'), $theme) . ">" . $theme . "</option>";
+        $html .= "<option value='" . $theme . "'" . selected(get_option('theme2'), $theme, false) . ">" . $theme . "</option>";
     }
+   
    ?>
         <select name="theme2">
           <?php echo $html; ?>
         </select>
    <?php
+  
 }
 
 function urlTraguardo(){   // seleziona URL di arrivo per calcolo statistiche
@@ -72,11 +73,11 @@ function demo_page()   // crea pagina impostazioni del plugin
  
          <form method="post" action="options.php">
             <?php
+            
                settings_fields("section");
-               settings_fields("urlsection");
- 
+              
+               
                do_settings_sections("demo");
-                 
                submit_button();
             ?>
          </form>
@@ -125,11 +126,11 @@ $conn->close();
 //SELECT userid, SUM(timespent), COUNT(webpage) FROM `testingdata` GROUP BY userid
 //SELECT AVG(timesum), AVG(webcount) FROM (SELECT userid, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid) AS inner_query
 //SELECT theme, AVG(timesum), AVG(webcount) FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query GROUP BY theme
-
+//SELECT theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query WHERE theme = "twentynineteen" OR theme = "twentytwenty" GROUP BY theme
 
 
 function my_admin_page_contents() {
-    $sql_query = "SELECT theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query GROUP BY theme";
+    $sql_query = 'SELECT theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query WHERE theme = "' . get_option("theme1") . '" OR theme = "' . get_option("theme2") . '" GROUP BY theme';
     ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
         <h1>
@@ -137,12 +138,12 @@ function my_admin_page_contents() {
         </h1>
         <div class="chart-container">
             <canvas id="myChart"></canvas>
+            
         </div>
-
 <script>
     var tempArray = <?php echo json_encode(get_data_query($sql_query)); ?>;
-    console.log(tempArray);
 const ctx = document.getElementById('myChart').getContext('2d');
+try{
 var data = {
     labels: ["Time Spent", "Clicks"],
     datasets: [
@@ -171,7 +172,10 @@ var myBarChart = new Chart(ctx, {
             }]
         }
     }
-});
+});}
+catch(e){
+    console.log("No data");
+}
 </script>
     <?php
 }
