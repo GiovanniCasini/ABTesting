@@ -106,18 +106,18 @@ add_action( 'admin_menu', 'my_admin_menu' );
 
 function get_data_query($sql){
     $servername = "localhost";
-$username = "root";
-$password = "root";
-$dbname = "abtesting";
-$conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) 
-  die("Connection failed: " . $conn->connect_error);
-$result = $conn->query($sql);
-$query_array = array();
-if ($result->num_rows > 0) {
-  while($row = $result->fetch_assoc()) {
-      array_push($query_array, array($row["theme"], $row["avgtime"], $row["avgclicks"]));
-  }
+    $username = "root";
+    $password = "root";
+    $dbname = "abtesting";
+    $conn = new mysqli($servername, $username, $password, $dbname);
+    if ($conn->connect_error) 
+        die("Connection failed: " . $conn->connect_error);
+    $result = $conn->query($sql);
+    $query_array = array();
+    if ($result->num_rows > 0) {
+        while($row = $result->fetch_assoc()) {
+            array_push($query_array, array($row["theme"], $row["avgtime"], $row["avgclicks"], $row["webpage"]));
+    }
   
   return $query_array;
 }
@@ -127,59 +127,102 @@ $conn->close();
 //SELECT AVG(timesum), AVG(webcount) FROM (SELECT userid, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid) AS inner_query
 //SELECT theme, AVG(timesum), AVG(webcount) FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query GROUP BY theme
 //SELECT theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query WHERE theme = "twentynineteen" OR theme = "twentytwenty" GROUP BY theme
-
+//SELECT webpage, userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme, webpage
+//SELECT userid, webpage FROM testingdata WHERE webpage IS NOT NULL
+//SELECT testingdata.userid, theme, SUM(timespent) AS timesum, COUNT(testingdata.webpage) AS webcount FROM `testingdata` INNER JOIN (SELECT userid, webpage FROM testingdata WHERE webpage IS NOT NULL) AS inner_query ON inner_query.userid = testingdata.userid GROUP BY testingdata.userid, theme
+//SELECT inner_query.webpage, theme, SUM(timespent) AS timesum, COUNT(testingdata.userid) AS webcount FROM `testingdata` INNER JOIN (SELECT userid, webpage FROM testingdata WHERE webpage IS NOT NULL) AS inner_query ON inner_query.userid = testingdata.userid GROUP BY theme, inner_query.webpage
+//SELECT webpage, theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT inner_query.webpage, theme, SUM(timespent) AS timesum, COUNT(testingdata.userid) AS webcount FROM `testingdata` INNER JOIN (SELECT userid, webpage FROM testingdata WHERE webpage IS NOT NULL) AS inner_query ON inner_query.userid = testingdata.userid GROUP BY theme, inner_query.webpage) AS inner_inner_query WHERE theme = "twentytwenty" OR theme = "twentytwentyone" GROUP BY webpage, theme
+//SELECT inner_query.webpage, testingdata.userid, theme, SUM(timespent) AS timesum, COUNT(testingdata.userid) AS webcount FROM `testingdata` INNER JOIN (SELECT userid, webpage FROM testingdata WHERE webpage IS NOT NULL) AS inner_query ON inner_query.userid = testingdata.userid GROUP BY theme, inner_query.webpage, testingdata.userid
 
 function my_admin_page_contents() {
-    $sql_query = 'SELECT theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT userid, theme, SUM(timespent) AS timesum, COUNT(webpage) AS webcount FROM `testingdata` GROUP BY userid, theme) AS inner_query WHERE theme = "' . get_option("theme1") . '" OR theme = "' . get_option("theme2") . '" GROUP BY theme';
+    $sql_query = 'SELECT webpage, theme, AVG(timesum) AS avgtime, AVG(webcount) AS avgclicks FROM (SELECT inner_query.webpage, testingdata.userid, theme, SUM(timespent) AS timesum, COUNT(testingdata.userid) AS webcount FROM `testingdata` INNER JOIN (SELECT userid, webpage FROM testingdata WHERE webpage IS NOT NULL) AS inner_query ON inner_query.userid = testingdata.userid GROUP BY theme, inner_query.webpage, testingdata.userid) AS inner_inner_query WHERE theme = "' . get_option("theme1") . '" OR theme = "' . get_option("theme2") . '" GROUP BY webpage, theme';
     ?>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
         <h1>
             <?php esc_html_e( 'ABTesting Stats', 'my-plugin-textdomain' ); ?>
         </h1>
-        <div class="chart-container">
-            <canvas id="myChart"></canvas>
-            
+        <div id="chart-container-container">
+        
         </div>
 <script>
-    var tempArray = <?php echo json_encode(get_data_query($sql_query)); ?>;
-const ctx = document.getElementById('myChart').getContext('2d');
-try{
-var data = {
-    labels: ["Time Spent", "Clicks"],
+    var sqlArray = <?php echo json_encode(get_data_query($sql_query)); ?>;
+    for(var i = 0; i < sqlArray.length; i++){
+        document.getElementById("chart-container-container").innerHTML += '<div class="chart-container" style="width: 45%; display: inline-block;"><canvas id="chart' + i + '"></canvas></div>';
+    }
+    for(var i = 0; i < sqlArray.length / 2; i++){ //for each URL
+        var context1 = document.getElementById('chart' + String(i*2)).getContext('2d');
+        var context2 = document.getElementById('chart' + String(i*2+1)).getContext('2d');
+        try{
+        var data1 = {
+    labels: ["Time Spent"],
     datasets: [
         {
-            label: tempArray[0][0],
+            label: sqlArray[i*2][0],
             backgroundColor: "#CA2E55",
-            data: [tempArray[0][1],tempArray[0][2]]
+            data: [sqlArray[i*2][1]]
         },
         {
-            label: tempArray[1][0],
+            label: sqlArray[i*2+1][0],
             backgroundColor: "#6457A6",
-            data: [tempArray[1][1],tempArray[1][2]]
+            data: [sqlArray[i*2+1][1]]
         },
     ]
 };
-var myBarChart = new Chart(ctx, {
-    type: 'bar',
-    data: data,
-    options: {
-        barValueSpacing: 20,
-        scales: {
-            yAxes: [{
-                ticks: {
-                    min: 0,
-                }
-            }]
-        }
-    }
-});}
-catch(e){
-    console.log("No data");
+} catch(e){
+    console.warn("Not enough data to draw graph!")
 }
+try{
+var data2 = {
+    labels: ["Clicks"],
+    datasets: [
+        {
+            label: sqlArray[i*2][0],
+            backgroundColor: "#CA2E55",
+            data: [sqlArray[i*2][2]]
+        },
+        {
+            label: sqlArray[i*2+1][0],
+            backgroundColor: "#6457A6",
+            data: [sqlArray[i*2+1][2]]
+        },
+    ]
+};
+} catch(e){
+    console.warn("Not enough data to draw graph!")
+}
+var chart1 = new Chart(context1, {
+    type: 'bar',
+    data: data1,
+    options: {
+        plugins: {
+            title: {
+                display: true,
+                text: sqlArray[i*2][3]
+            }
+        },
+        barValueSpacing: 20
+    }
+});
+var chart2 = new Chart(context2, {
+    type: 'bar',
+    data: data2,
+    options: {
+        plugins: {
+            title: {
+                display: true,
+                text: sqlArray[i*2+1][3]
+            }
+        },
+        barValueSpacing: 20
+    }
+});
+}
+
 </script>
+
     <?php
 }
- 
+
 add_action("admin_menu", "menu_item");
 
 function get_current_url(){
@@ -220,18 +263,19 @@ function cookie_manager() {   // gestisce cookie per tenere traccia dati utente
     else{
         if(get_current_url() != $_COOKIE['currenturl'] && $_COOKIE["goal"] != "true"){
             $url_array = explode(',', get_option('goalurl'));
-            if(in_array(get_current_url(), $url_array))
+            $cookiedb = "NULL";
+            if(in_array(get_current_url(), $url_array)){
                 setcookie('goal', 'true', 0, '/');
+                $cookiedb = "'" . (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]" . "'";
+            }
             $total_time = time() - $_COOKIE["time_started"];
             setcookie('time_started', time(), 0, '/');
             $sql = "INSERT INTO testingdata (timespent, userid, theme, webpage)
-            VALUES ('". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "','" . $_COOKIE["currenturl"] . "')";
+            VALUES ('". $total_time ."', '".  $_COOKIE["userid"] ."', '" . $_COOKIE["theme"] . "'," . $cookiedb . ")";
             perform_query($sql);
             setcookie('currenturl', get_current_url(), 0, '/');
             $total_time = 0;
         }
     }
 }
-   
 add_action('init', 'cookie_manager');
-
